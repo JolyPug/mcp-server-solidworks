@@ -667,11 +667,10 @@ namespace SolidworksExecution.Services
                     if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
                         System.IO.Directory.CreateDirectory(dir);
 
-                    success = modelDoc.Extension.SaveAs3(filePath,
+                    success = modelDoc.Extension.SaveAs(filePath,
                         (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                         (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                        null, null,
-                        ref saveErrors, ref saveWarnings);
+                        null, ref saveErrors, ref saveWarnings);
                 }
 
                 if (!success)
@@ -770,19 +769,17 @@ namespace SolidworksExecution.Services
                     // PDF requires ExportPdfData options object
                     var exportData = _solidWorks.GetExportFileData(
                         (int)swExportDataFileType_e.swExportPdfData) as ExportPdfData;
-                    success = modelDoc.Extension.SaveAs3(filePath,
+                    success = modelDoc.Extension.SaveAs(filePath,
                         (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                         (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                        exportData, null,
-                        ref exportErrors, ref exportWarnings);
+                        exportData, ref exportErrors, ref exportWarnings);
                 }
                 else
                 {
-                    success = modelDoc.Extension.SaveAs3(filePath,
+                    success = modelDoc.Extension.SaveAs(filePath,
                         (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                         (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                        null, null,
-                        ref exportErrors, ref exportWarnings);
+                        null, ref exportErrors, ref exportWarnings);
                 }
 
                 if (!success)
@@ -892,17 +889,17 @@ namespace SolidworksExecution.Services
                     {
                         var exportData = _solidWorks.GetExportFileData(
                             (int)swExportDataFileType_e.swExportPdfData) as ExportPdfData;
-                        success = modelDoc.Extension.SaveAs3(outPath,
+                        success = modelDoc.Extension.SaveAs(outPath,
                             (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                             (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                            exportData, null, ref exportErrors, ref exportWarnings);
+                            exportData, ref exportErrors, ref exportWarnings);
                     }
                     else
                     {
-                        success = modelDoc.Extension.SaveAs3(outPath,
+                        success = modelDoc.Extension.SaveAs(outPath,
                             (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                             (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                            null, null, ref exportErrors, ref exportWarnings);
+                            null, ref exportErrors, ref exportWarnings);
                     }
 
                     if (success) exported.Add(outPath);

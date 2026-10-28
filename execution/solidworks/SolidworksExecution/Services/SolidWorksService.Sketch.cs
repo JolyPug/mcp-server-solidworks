@@ -657,6 +657,8 @@ namespace SolidworksExecution.Services
                 double? value = p?.Value<double?>("value");
                 double labelOffsetX = p?.Value<double?>("label_offset_x") ?? 0.0;
                 double labelOffsetY = p?.Value<double?>("label_offset_y") ?? -0.015;
+                double pz = p?.Value<double?>("pz") ?? 0.0;
+                double labelOffsetZ = p?.Value<double?>("label_offset_z") ?? 0.0;
 
                 if (px == null)
                     return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),
@@ -691,23 +693,48 @@ namespace SolidworksExecution.Services
                 _solidWorks.SetUserPreferenceToggle(
                     (int)swUserPreferenceToggle_e.swInputDimValOnCreate, false);
 
+                // Zoom tightly around the pick point first: SelectByID2's pick tolerance is in SCREEN
+                // pixels, so at zoom-to-fit every segment of a small (1-5 mm) feature lies inside it and
+                // the wrong neighbour gets dimensioned. A +/-3 mm window makes the pick unambiguous.
+                // Look straight at the sketch plane (Ctrl+8): seen edge-on, every segment projects onto one
+                // screen line and the coordinate pick becomes arbitrary (Top/Right-plane sketches).
+                // (Locale-proof: named views are localized, e.g. "*Перпендикулярно" — so pick the standard
+                // view whose axis matches the sketch normal instead of "*Normal To".)
+                try
+                {
+                    var xf = activeSketch.ModelToSketchTransform as SolidWorks.Interop.sldworks.MathTransform;
+                    var inv = xf?.Inverse() as SolidWorks.Interop.sldworks.MathTransform;
+                    var d = inv?.ArrayData as double[];
+                    if (d != null && d.Length >= 9)
+                    {
+                        double nx = Math.Abs(d[6]), ny = Math.Abs(d[7]), nz = Math.Abs(d[8]);
+                        int viewId = (nx >= ny && nx >= nz) ? (int)swStandardViews_e.swRightView
+                                   : (ny >= nz) ? (int)swStandardViews_e.swTopView
+                                   : (int)swStandardViews_e.swFrontView;
+                        modelDoc.ShowNamedView2("", viewId);
+                    }
+                }
+                catch { }
+                try { modelDoc.ViewZoomTo2(px.Value - 0.003, py.Value - 0.003, pz - 0.003, px.Value + 0.003, py.Value + 0.003, pz + 0.003); } catch { }
                 // SelectByID2 with coordinates selects the nearest segment — robust for any sketch geometry
                 bool selected = modelDoc.Extension.SelectByID2(
-                    "", "SKETCHSEGMENT", px.Value, py.Value, 0, false, 0, null, 0);
+                    "", "SKETCHSEGMENT", px.Value, py.Value, pz, false, 0, null, 0);
 
                 if (!selected)
                 {
                     _solidWorks.SetUserPreferenceToggle(
                         (int)swUserPreferenceToggle_e.swInputDimValOnCreate, prevInputDimVal);
+                    try { modelDoc.ViewZoomtofit2(); } catch { }
                     return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),
                         "SEGMENT_NOT_FOUND", $"No sketch segment found at or near ({px.Value}, {py.Value}).");
                 }
 
-                var dim = modelDoc.AddDimension2(px.Value + labelOffsetX, py.Value + labelOffsetY, 0) as IDisplayDimension;
+                var dim = modelDoc.AddDimension2(px.Value + labelOffsetX, py.Value + labelOffsetY, pz + labelOffsetZ) as IDisplayDimension;
 
                 // Restore preference regardless of outcome
                 _solidWorks.SetUserPreferenceToggle(
                     (int)swUserPreferenceToggle_e.swInputDimValOnCreate, prevInputDimVal);
+                try { modelDoc.ViewZoomtofit2(); } catch { }
 
                 if (dim == null)
                     return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),

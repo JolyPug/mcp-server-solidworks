@@ -49,6 +49,10 @@ namespace SolidworksExecution.Services
                 // mid_plane=true ⇒ swEndCondMidPlane: the feature extrudes SYMMETRICALLY about the
                 // sketch plane; depth = the TOTAL width (SolidWorks midplane semantics).
                 bool midPlane = p?.Value<bool?>("mid_plane") ?? false;
+                // draft_angle (DEGREES, boss only) + draft_outward: taper of the extrusion walls (cast drafts).
+                double draftDeg = p?.Value<double?>("draft_angle") ?? 0.0;
+                bool draftOut = p?.Value<bool?>("draft_outward") ?? false;
+                bool useDraft = draftDeg > 0;
                 if (upToSurface && featureType != "boss" && featureType != "cut")
                     return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),
                         "INVALID_PARAMETER", "up_to_face_index is only valid for feature_type 'boss' or 'cut'.");
@@ -118,7 +122,13 @@ namespace SolidworksExecution.Services
                             "SKETCH_NOT_ACTIVE", "revolve needs the profile+axis sketch active. Call create_sketch and draw the profile + axis line first.");
 
                     modelDoc.ClearSelection2(true);
-                    bool axSel = modelDoc.Extension.SelectByID2("", "SKETCHSEGMENT", (ax1 + ax2) / 2.0, (ay1 + ay2) / 2.0, 0, false, 0, null, 0);
+                    // Pick reliably: look at the sketch plane and zoom around the pick point (screen-pixel
+                    // tolerance otherwise grabs a neighbouring construction line).
+                    double amx = (ax1 + ax2) / 2.0, amy = (ay1 + ay2) / 2.0;
+                    try { modelDoc.ShowNamedView2("", (int)swStandardViews_e.swFrontView); } catch { }
+                    try { modelDoc.ViewZoomTo2(amx - 0.003, amy - 0.003, -0.003, amx + 0.003, amy + 0.003, 0.003); } catch { }
+                    bool axSel = modelDoc.Extension.SelectByID2("", "SKETCHSEGMENT", amx, amy, 0, false, 0, null, 0);
+                    try { modelDoc.ViewZoomtofit2(); } catch { }
                     if (!axSel)
                         return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),
                             "AXIS_NOT_FOUND", $"No sketch segment found at midpoint of provided axis coords. Provide axis_x1/y1/x2/y2 as two endpoints of the centerline.");
@@ -129,6 +139,8 @@ namespace SolidworksExecution.Services
                     var revSelMgr = modelDoc.SelectionManager as ISelectionMgr;
                     var axisSeg = revSelMgr?.GetSelectedObject6(1, -1) as ISketchSegment;
                     if (axisSeg != null) axisSeg.ConstructionGeometry = true;
+                    string axisSegName = null;
+                    try { axisSeg = revSelMgr?.GetSelectedObject6(1, -1) as ISketchSegment; axisSegName = axisSeg?.GetName(); } catch { }
 
                     // Remember the profile sketch, then exit it (post-exit, re-select it by name — names
                     // resolve after exit even though coordinates do not).
@@ -137,6 +149,13 @@ namespace SolidworksExecution.Services
                     modelDoc.ClearSelection2(true);
                     if (!string.IsNullOrEmpty(profileSketchName))
                         modelDoc.Extension.SelectByID2(profileSketchName, "SKETCH", 0, 0, 0, false, 0, null, 0);
+                    // Re-select the CHOSEN axis by name (mark 4 = axis of revolution). Without this the
+                    // selection is lost on sketch exit and SolidWorks auto-picks the first centerline.
+                    if (!string.IsNullOrEmpty(axisSegName) && !string.IsNullOrEmpty(profileSketchName))
+                    {
+                        bool axReSel = modelDoc.Extension.SelectByID2(axisSegName + "@" + profileSketchName, "EXTSKETCHSEGMENT", 0, 0, 0, true, 4, null, 0);
+                        ExecLog.Write($"revolve: axis {axisSegName}@{profileSketchName} reselect={axReSel}");
+                    }
 
                     feature = featureMgr.FeatureRevolve2(
                         true, true, false, false, false, false,
@@ -196,7 +215,7 @@ namespace SolidworksExecution.Services
                     for (int i = 0; i < profileArray.Count; i++)
                     {
                         string skName = profileArray[i].Value<string>();
-                        bool sel = modelDoc.Extension.SelectByID2(skName, "SKETCH", 0, 0, 0, i > 0, 0, null, 0);
+                        bool sel = modelDoc.Extension.SelectByID2(skName, "SKETCH", 0, 0, 0, i > 0, 1, null, 0); // mark 1 = loft profile (required on SW2019)
                         if (!sel)
                             return BuildFailed(request.OperationId, _guard.GetCurrentStateVersion(),
                                 "SKETCH_NOT_FOUND", $"Profile sketch '{skName}' not found.");
@@ -300,8 +319,8 @@ namespace SolidworksExecution.Services
                         true, false, reverse,
                         endCond, 0,
                         depthVal, 0,
-                        false, false, false, false,
-                        0, 0,
+                        useDraft, false, draftOut, false,
+                        useDraft ? draftDeg * Math.PI / 180.0 : 0, 0,
                         false, false, false, false,
                         true, true, true,
                         (int)swStartConditions_e.swStartSketchPlane, 0,

@@ -152,6 +152,7 @@ namespace SolidworksExecution.Controllers
                 case "add_sketch_entities":    return _service.AddSketchEntities(request);
                 case "add_dimension":          return _service.AddDimension(request);
                 case "add_sketch_constraint":  return _service.AddSketchConstraint(request);
+                case "sketch_script":          return _service.SketchScript(request);
                 case "add_edge_feature":       return _service.AddEdgeFeature(request);
                 case "create_rib":             return _service.CreateRib(request);
                 case "create_drawing":         return _service.CreateDrawing(request);

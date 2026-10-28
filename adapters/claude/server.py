@@ -446,18 +446,49 @@ def add_sketch_constraint(
 
 
 # ---------------------------------------------------------------------------
+# Tool: sketch_script (fully-defined 2D sketches; ids instead of coordinate picks)
+# ---------------------------------------------------------------------------
+@mcp.tool(structured_output=False)
+def sketch_script(ops: str, reset_ids: bool = False) -> str:
+    """Run a batch of operations on the ACTIVE sketch (create_sketch / edit_sketch first).
+    ops: JSON array STRING. ALL LENGTHS IN MILLIMETRES, ANGLES IN DEGREES, sketch coordinates.
+    Entities get an 'id'; relations/dimensions reference ids, never coordinates:
+      {"op":"line","id":"L1","x1":0,"y1":0,"x2":50,"y2":0}          (+ "construction":true)
+      {"op":"centerline","id":"C1","x1":..,"y1":..,"x2":..,"y2":..}
+      {"op":"arc","id":"A1","cx":..,"cy":..,"x1":..,"y1":..,"x2":..,"y2":..,"dir":1}  dir +1 CCW / -1 CW
+      {"op":"circle","id":"H1","cx":..,"cy":..,"r":..}
+      {"op":"point","id":"P1","x":..,"y":..}
+      {"op":"construction","ents":["L1"],"value":true}
+      {"op":"rel","type":"coincident","ents":["L1.end","A1.start"]}
+         types: coincident tangent horizontal vertical horizontal_points vertical_points equal
+                concentric coradial parallel perpendicular midpoint collinear symmetric intersection
+                (or a raw sgXXX name). "ORIGIN" refers to the sketch origin.
+      {"op":"dim","ents":["L1"],"value":50,"lx":25,"ly":-10,"kind":"smart"}
+         kind: smart | horizontal | vertical | angle (value in degrees). Circle -> diameter, arc -> radius,
+         two points / point+line -> distance. lx/ly = label position.
+      {"op":"status"}
+    Point refs: "L1.start", "L1.end", "A1.center". Ids persist across calls for the same sketch
+    (reset_ids=true clears them). Stops at the first failing op (earlier ops remain).
+    Returns constrained_status (UnderDefined / FullyDefined / OverDefined ...) and a per-op log."""
+    return _call("sketch_script", {"ops": json.loads(ops) if ops else [], "reset_ids": reset_ids})
+
+
+# ---------------------------------------------------------------------------
 # Tool: add_dimension
 # ---------------------------------------------------------------------------
 @mcp.tool(structured_output=False)
-def add_dimension(px: float, py: float, value: Annotated[float, Field(gt=0, description="Dimension value in METERS (e.g. 0.05 = 50mm)")], label_offset_x: float = 0.0, label_offset_y: float = -0.015) -> str:
+def add_dimension(px: float, py: float, value: Annotated[float, Field(gt=0, description="Dimension value in METERS (e.g. 0.05 = 50mm)")], label_offset_x: float = 0.0, label_offset_y: float = -0.015, pz: float = 0.0, label_offset_z: float = 0.0) -> str:
     """Apply a smart dimension to the sketch segment nearest to point (px, py).
     px/py should be on or very near the target segment — e.g. the midpoint of a line.
     label_offset_x/y control where the dimension label is placed relative to the segment point.
-    Works for any sketch geometry (rectangles, polygons, complex profiles)."""
+    Works for any sketch geometry (rectangles, polygons, complex profiles).
+    px/py/pz are MODEL-space coordinates (meters): pz is needed for sketches NOT on the Z=0 plane
+    (an offset plane, or Top/Right planes where a sketch point (u,v) maps to model (x,y,z));
+    label_offset_z shifts the label along model Z."""
     return _call(
         "add_dimension",
-        {"px": px, "py": py, "value": value, "label_offset_x": label_offset_x,
-            "label_offset_y": label_offset_y},
+        {"px": px, "py": py, "pz": pz, "value": value, "label_offset_x": label_offset_x,
+            "label_offset_y": label_offset_y, "label_offset_z": label_offset_z},
     )
 
 
@@ -481,8 +512,11 @@ def extrude_feature(
     through: bool = False,
     up_to_face_index: int = -1,
     mid_plane: bool = False,
+    draft_angle: float = 0.0,
+    draft_outward: bool = False,
 ) -> str:
     """Extrude/feature the active sketch profile.
+    draft_angle (boss only): wall taper in DEGREES (cast draft); draft_outward=True widens away from the sketch.
     feature_type='boss' (default): solid extrusion, requires depth.
     feature_type='cut': material removal, requires depth and existing solid body.
     feature_type='revolve': solid of revolution — angle in DEGREES (default 360 = full revolve); axis defined by axis_x1/y1 to axis_x2/y2 (midpoint of that segment selects the centerline).
@@ -517,6 +551,8 @@ def extrude_feature(
             "through": through,
             "up_to_face_index": up_to_face_index,
             "mid_plane": mid_plane,
+            "draft_angle": draft_angle,
+            "draft_outward": draft_outward,
         },
     )
 
@@ -701,8 +737,8 @@ def add_drawing_dimension(
     Requires an active drawing document."""
     return _call(
         "add_drawing_dimension",
-        {"px": px, "py": py, "value": value, "label_offset_x": label_offset_x,
-            "label_offset_y": label_offset_y},
+        {"px": px, "py": py, "pz": pz, "value": value, "label_offset_x": label_offset_x,
+            "label_offset_y": label_offset_y, "label_offset_z": label_offset_z},
     )
 
 

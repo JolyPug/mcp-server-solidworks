@@ -661,7 +661,7 @@ namespace SolidworksExecution.Services
                 if (!def.UseGaugeTable) bj["k_factor"] = R6(def.KFactor);
                 if (def.ReverseThickness) bj["reverse_thickness"] = true;
                 if (def.ReverseDirection) bj["reverse_direction"] = true;
-                if (def.SymmetricThickness) bj["symmetric_thickness"] = true;
+                // SW2019: SymmetricThickness недоступен (API с 2023)
                 fj["base_flange"] = bj;
             }
             catch { }

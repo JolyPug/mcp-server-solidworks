@@ -92,6 +92,18 @@
   },
   "output": "→ see execution-response.json"
  },
+ "sketch_script": {
+  "description": "Runs a batch of id-based sketch operations (line, centerline, arc, circle, point, construction, rel, dim, status) on the active sketch. Millimetres / degrees. Returns constrained_status.",
+  "input": {
+   "operation_id": "string (required, unique idempotency key)",
+   "state_version": "integer (required, must match current execution state)",
+   "params": {
+    "ops": "array (required, list of operation objects)",
+    "reset_ids": "boolean (optional, default false - clear the id registry)"
+   }
+  },
+  "output": "-> see execution-response.json"
+ },
  "add_dimension": {
   "description": "Applies a smart dimension to a sketch segment by selecting it via a point on the segment. px/py must lie on or very near the target segment (e.g. the midpoint of a line). This approach works reliably for any sketch geometry, not just simple rectangles.",
   "input": {
@@ -102,7 +114,9 @@
     "py": "number (Y coordinate of a point on the target segment, in document units)",
     "value": "number (dimension value in document units)",
     "label_offset_x": "number (optional, default 0.0 — X offset from px for the dimension label position)",
-    "label_offset_y": "number (optional, default -0.015 — Y offset from py for the dimension label position)"
+    "label_offset_y": "number (optional, default -0.015 — Y offset from py for the dimension label position)",
+    "pz": "number (optional, default 0.0 — Z coordinate of the pick point, model space)",
+    "label_offset_z": "number (optional, default 0.0 — Z offset for the dimension label position)"
    }
   },
   "output": "→ see execution-response.json"
@@ -125,7 +139,9 @@
     "reverse": "boolean (boss/cut — flip feature direction; needed for a cut/boss sketched on a part face where material is on the opposite side)",
     "through": "boolean (boss/cut — through-all end condition; depth ignored)",
     "up_to_face_index": "integer (optional, default -1 = off; boss/cut — >= 0 selects the UP-TO-SURFACE end condition terminating exactly on that model face; index from analyze_model(faces), same enumeration as create_sketch face_index; depth ignored. The face is append-selected with Mark=1, the FeatureExtrusion3/FeatureCut4 end-condition reference mark)",
-    "mid_plane": "boolean (optional, default false; boss/cut — swEndCondMidPlane: extrudes SYMMETRICALLY about the sketch plane, depth = TOTAL width; conflicts with through/up_to_face_index)"
+    "mid_plane": "boolean (optional, default false; boss/cut — swEndCondMidPlane: extrudes SYMMETRICALLY about the sketch plane, depth = TOTAL width; conflicts with through/up_to_face_index)",
+    "draft_angle": "number (optional, default 0; boss only — wall draft in DEGREES)",
+    "draft_outward": "boolean (optional, default false; boss only — draft widens outward)"
    }
   },
   "output": "→ see execution-response.json"

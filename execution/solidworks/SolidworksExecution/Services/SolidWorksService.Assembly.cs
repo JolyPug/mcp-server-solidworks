@@ -990,10 +990,10 @@ namespace SolidworksExecution.Services
                 if (!string.IsNullOrEmpty(dir) && !System.IO.Directory.Exists(dir))
                     System.IO.Directory.CreateDirectory(dir);
                 int se = 0, sw = 0;
-                bool ok = newDoc.Extension.SaveAs3(filePath,
+                bool ok = newDoc.Extension.SaveAs(filePath,
                     (int)swSaveAsVersion_e.swSaveAsCurrentVersion,
                     (int)swSaveAsOptions_e.swSaveAsOptions_Silent,
-                    null, null, ref se, ref sw);
+                    null, ref se, ref sw);
                 try { _solidWorks.CloseDoc(newDoc.GetTitle()); } catch { }
                 int actErr = 0;
                 _solidWorks.ActivateDoc3(srcTitle, false, 1 /* swDontRebuildActiveDoc */, ref actErr);

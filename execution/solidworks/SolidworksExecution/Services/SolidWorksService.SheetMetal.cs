@@ -102,8 +102,7 @@ namespace SolidworksExecution.Services
                     // extrude. 4-1's original blank is symmetric (sheet z ∈ [−t/2, +t/2]) with NO reverse
                     // flags — and the intrinsic sheet orientation those flags define is what downstream
                     // bend directions are measured against, so reproduce the ORIGINAL's exact config.
-                    if (p?.Value<bool?>("symmetric_thickness") == true)
-                        bfData.SymmetricThickness = true;
+                    // SW2019: SymmetricThickness недоступен (API с 2023)
                     bfData.OverrideRadius = true;
                     bfData.BendRadius = bendRadius;
                     bfData.OverrideKFactor = true;

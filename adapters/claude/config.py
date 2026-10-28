@@ -16,7 +16,7 @@ EXECUTE_ENDPOINT = f"{EXECUTION_BASE_URL}/api/tool/execute"
 STATE_ENDPOINT = f"{EXECUTION_BASE_URL}/api/tool/state"
 HEALTH_ENDPOINT = f"{EXECUTION_BASE_URL}/health"
 ENSURE_ENDPOINT = f"{EXECUTION_BASE_URL}/ensure_ready"
-HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "30"))
+HTTP_TIMEOUT = float(os.getenv("HTTP_TIMEOUT", "300"))  # sketch_script batches can run for minutes
 # ensure_ready may cold-launch SolidWorks, which can take tens of seconds — give it room.
 ENSURE_TIMEOUT = float(os.getenv("ENSURE_TIMEOUT", "120"))
 # The CONNECT phase gets its own budget, deliberately NOT derived from the timeouts above.
